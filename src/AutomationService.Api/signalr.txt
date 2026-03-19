@@ -1,0 +1,16 @@
+http://localhost:5130
+
+
+POST http://localhost:5130/hubs/notifications/negotiate?negotiateVersion=1
+
+ws://localhost:5130/hubs/notifications?id=<CONNECTION_TOKEN_ODER_ID>
+
+{"protocol":"json","version":1}
+{"type":1,"invocationId":"1","target":"SubscribeToAll","arguments":[]}
+
+{"type":1,"invocationId":"1","target":"SubscribeToAquarium","arguments":["2037892f-529c-4e80-9318-92740f2f34ed"]}
+
+
+KEYS *
+
+GET sensor:f3934aba-9397-4b56-a1f4-8471924d360d:last
