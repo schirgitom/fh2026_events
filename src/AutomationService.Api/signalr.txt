@@ -8,6 +8,7 @@ ws://localhost:5130/hubs/notifications?id=<CONNECTION_TOKEN_ODER_ID>
 {"protocol":"json","version":1}
 {"type":1,"invocationId":"1","target":"SubscribeToAll","arguments":[]}
 
+{"protocol":"json","version":1}
 {"type":1,"invocationId":"1","target":"SubscribeToAquarium","arguments":["2037892f-529c-4e80-9318-92740f2f34ed"]}
 
 

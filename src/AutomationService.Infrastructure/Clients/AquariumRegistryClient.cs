@@ -1,13 +1,15 @@
 using System.Text.Json;
 using AutomationService.Application.Abstractions;
 using AutomationService.Infrastructure.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace AutomationService.Infrastructure.Clients;
 
 public sealed class AquariumRegistryClient(
     HttpClient httpClient,
-    IOptions<AquariumRegistryOptions> options) : IAquariumRegistryClient
+    IOptions<AquariumRegistryOptions> options,
+    ILogger<AquariumRegistryClient> logger) : IAquariumRegistryClient
 {
     public async Task<IReadOnlyCollection<Guid>> GetAquariumIdsAsync(CancellationToken cancellationToken = default)
     {
@@ -16,10 +18,17 @@ public sealed class AquariumRegistryClient(
         var freshwaterIds = await FetchIdsAsync(options.Value.FreshWaterPath, cancellationToken);
         var seawaterIds = await FetchIdsAsync(options.Value.SeaWaterPath, cancellationToken);
 
-        return freshwaterIds
+        var allIds = freshwaterIds
             .Concat(seawaterIds)
             .Distinct()
             .ToArray();
+
+        logger.LogInformation(
+            "Loaded {AquariumCount} unique aquarium IDs from registry: {AquariumIds}",
+            allIds.Length,
+            allIds);
+
+        return allIds;
     }
 
     private async Task<IReadOnlyCollection<Guid>> FetchIdsAsync(string path, CancellationToken cancellationToken)
@@ -52,7 +61,14 @@ public sealed class AquariumRegistryClient(
             }
         }
 
-        return ids.ToArray();
+        var idsArray = ids.ToArray();
+        logger.LogInformation(
+            "Loaded {AquariumCount} aquarium IDs from registry path {RegistryPath}: {AquariumIds}",
+            idsArray.Length,
+            path,
+            idsArray);
+
+        return idsArray;
     }
 
     private void ExtractFromArray(JsonElement items, ISet<Guid> ids)

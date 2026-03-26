@@ -33,6 +33,34 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
+builder.Services.AddCors(options =>
+{
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+    var allowAllOrigins = builder.Configuration.GetValue<bool>("Cors:AllowAllOrigins");
+    options.AddPolicy("FrontendCors", policyBuilder =>
+    {
+        policyBuilder
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+
+        if (allowAllOrigins)
+        {
+            policyBuilder
+                .SetIsOriginAllowed(_ => true)
+                .AllowCredentials();
+            return;
+        }
+
+        if (allowedOrigins.Length == 0)
+        {
+            return;
+        }
+
+        policyBuilder
+            .WithOrigins(allowedOrigins)
+            .AllowCredentials();
+    });
+});
 
 builder.Services.AddHttpClient<IAquariumDataClient, GraphQlAquariumDataClient>((serviceProvider, client) =>
 {
@@ -85,11 +113,20 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AutomationDbContext>();
     dbContext.Database.EnsureCreated();
+    dbContext.Database.ExecuteSqlRaw("""
+        ALTER TABLE "OutboxMessages"
+        ADD COLUMN IF NOT EXISTS "AquariumId" uuid NULL;
+        """);
+    dbContext.Database.ExecuteSqlRaw("""
+        CREATE INDEX IF NOT EXISTS "IX_OutboxMessages_AquariumId_OccurredAtUtc"
+        ON "OutboxMessages" ("AquariumId", "OccurredAtUtc");
+        """);
 }
 
 app.UseSwagger();
 app.UseSwaggerUI();
 
+app.UseCors("FrontendCors");
 app.UseAuthorization();
 app.UseSerilogRequestLogging();
 

@@ -1,14 +1,13 @@
 using AutomationService.Application.Abstractions;
 using AutomationService.Application.Configuration;
 using AutomationService.Application.Dtos;
-using AutomationService.Domain.Events;
 using Microsoft.Extensions.Options;
 
 namespace AutomationService.Application.Services;
 
 public sealed class FeedingService(
     IStateStore stateStore,
-    IEventPublisher eventPublisher,
+    INotificationService notificationService,
     IClock clock,
     IOptions<FeedingOptions> feedingOptions) : IFeedingService
 {
@@ -41,6 +40,19 @@ public sealed class FeedingService(
         return status;
     }
 
+    public async Task<FeedingIntervalDto> GetIntervalAsync(Guid aquariumId, CancellationToken cancellationToken = default)
+    {
+        var intervalMinutes = await stateStore.GetFeedingIntervalMinutesAsync(aquariumId, cancellationToken) ?? defaultIntervalMinutes;
+        return new FeedingIntervalDto
+        {
+            AquariumId = aquariumId,
+            IntervalMinutes = intervalMinutes
+        };
+    }
+
+    public Task<FeedingStatusDto> GetCurrentStatusAsync(Guid aquariumId, CancellationToken cancellationToken = default) =>
+        BuildStatusAsync(aquariumId, clock.UtcNow, cancellationToken);
+
     public async Task<FeedingStatusDto> EvaluateAsync(Guid aquariumId, DateTimeOffset now, CancellationToken cancellationToken = default)
     {
         var status = await BuildStatusAsync(aquariumId, now, cancellationToken);
@@ -55,6 +67,7 @@ public sealed class FeedingService(
         var sent = await stateStore.TrySetFlagAsync(GetOverdueFlagKey(aquariumId), TimeSpan.FromDays(1), cancellationToken);
         if (!sent)
         {
+            await PublishStatusAsync(status, null, cancellationToken);
             return status;
         }
 
@@ -78,6 +91,7 @@ public sealed class FeedingService(
         return new FeedingStatusDto
         {
             AquariumId = aquariumId,
+            LastFeedingAt = lastFeeding.Value,
             NextFeedingAt = nextFeeding,
             RemainingSeconds = remainingSeconds,
             IsOverdue = now > nextFeeding
@@ -86,14 +100,15 @@ public sealed class FeedingService(
 
     private async Task PublishStatusAsync(FeedingStatusDto status, string? message, CancellationToken cancellationToken)
     {
-        var @event = new FeedingStatusUpdatedIntegrationEvent(
-            status.AquariumId,
-            status.NextFeedingAt,
-            status.RemainingSeconds,
-            status.IsOverdue,
-            message);
-
-        await eventPublisher.PublishAsync(@event, cancellationToken);
+        await notificationService.NotifyFeedingAsync(new FeedingNotificationDto
+        {
+            AquariumId = status.AquariumId,
+            LastFeedingAt = status.LastFeedingAt,
+            NextFeedingAt = status.NextFeedingAt,
+            RemainingSeconds = status.RemainingSeconds,
+            IsOverdue = status.IsOverdue,
+            Message = message
+        }, cancellationToken);
     }
 
     private static string GetOverdueFlagKey(Guid aquariumId) => $"feeding:{aquariumId}:overdue:sent";

@@ -22,6 +22,7 @@ public sealed class OutboxMessageDispatcher(
             await notificationService.NotifyFeedingAsync(new FeedingNotificationDto
             {
                 AquariumId = feeding.AquariumId,
+                LastFeedingAt = feeding.LastFeedingAt,
                 NextFeedingAt = feeding.NextFeedingAt,
                 RemainingSeconds = feeding.RemainingSeconds,
                 IsOverdue = feeding.IsOverdue,

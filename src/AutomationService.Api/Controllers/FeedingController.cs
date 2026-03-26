@@ -8,6 +8,20 @@ namespace AutomationService.Api.Controllers;
 [Route("api/feeding")]
 public sealed class FeedingController(IFeedingService feedingService) : ControllerBase
 {
+    [HttpGet("{aquariumId:guid}/status")]
+    public async Task<IActionResult> GetStatus(Guid aquariumId, CancellationToken cancellationToken)
+    {
+        var status = await feedingService.GetCurrentStatusAsync(aquariumId, cancellationToken);
+        return Ok(status);
+    }
+
+    [HttpGet("{aquariumId:guid}/interval")]
+    public async Task<IActionResult> GetInterval(Guid aquariumId, CancellationToken cancellationToken)
+    {
+        var interval = await feedingService.GetIntervalAsync(aquariumId, cancellationToken);
+        return Ok(interval);
+    }
+
     [HttpPost("{aquariumId:guid}")]
     public async Task<IActionResult> FeedNow(Guid aquariumId, CancellationToken cancellationToken)
     {

@@ -15,6 +15,7 @@ public sealed class SignalRNotificationService(
         var payload = new
         {
             aquariumId = notification.AquariumId,
+            lastFeedingAt = notification.LastFeedingAt,
             nextFeedingAt = notification.NextFeedingAt,
             remainingSeconds = notification.RemainingSeconds,
             isOverdue = notification.IsOverdue,
